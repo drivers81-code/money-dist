@@ -1,0 +1,119 @@
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.pe.homework.persistence.repository.DistMoneyRepository">
+	
+	<insert id="tokenSave" parameterType="TokenDAO">
+		INSERT INTO tb_token (
+			  user_seq
+			, token
+			, create_date
+		) VALUES (
+			#{userSeq}
+			, #{token}
+			, now()
+		)
+		<selectKey keyProperty="seq" resultType="int" order="AFTER">
+			SELECT LAST_INSERT_ID()
+  		</selectKey>
+	</insert>
+
+	<select id="getChatRoomUserCheck" parameterType="ChatRoomDAO" resultType="int" >
+		SELECT COUNT(seq) 
+		FROM tm_chat_user
+		WHERE room_seq = #{roomSeq}
+		AND user_seq = #{userSeq}
+	</select>
+	
+	<select id="getChatRoomUserList" parameterType="int" resultType="ChatRoomDAO" >
+		SELECT * 
+		FROM tm_chat_user
+		WHERE room_seq = #{roomSeq}
+	</select>
+	
+	<insert id="insertDistMoneyInfo" parameterType="DistMoneyDAO">
+		INSERT INTO tb_dist_info
+		(
+			token
+			, user_seq
+			, room_seq
+			, dist_amount
+			, create_date
+		) VALUES
+		(
+			  #{token}
+			, #{userSeq}
+			, #{roomSeq}
+			, #{distAmount}
+			, NOW()
+		)
+		<selectKey keyProperty="seq" resultType="int" order="AFTER">
+			SELECT LAST_INSERT_ID()
+  		</selectKey>
+	</insert>
+
+	<insert id="insertAllocateDistMoneyList" parameterType="AllocateDistMoneyDAO">
+		INSERT INTO tb_dist_allocated
+		(
+			dist_seq
+			, allocate_amount
+		) VALUES
+		<foreach collection="allocateDistMoneyList" item="item" separator=",">
+		(
+			(SELECT seq FROM tb_dist_info WHERE token = #{item.token})
+			, #{item.allocateAmount}
+		)
+		</foreach>
+	</insert>
+
+	<select id="getDistMoneyList" parameterType="DistMoneyDAO" resultType="DistMoneyDAO" >
+		SELECT seq, token, user_seq, room_seq, dist_amount, create_date
+		FROM tb_dist_info
+		WHERE token = #{token}
+	</select>
+
+	<select id="getUserAllocatedDistMoneyList" parameterType="AllocateDistMoneyDAO" resultType="AllocateDistMoneyDAO" >
+		SELECT al.seq, al.dist_seq, al.allocate_user_seq, al.allocate_date, dist.token
+		FROM tb_dist_allocated al
+		INNER JOIN tb_dist_info dist ON al.dist_seq = dist.seq AND dist.token = #{token}
+		WHERE al.allocate_user_seq =  #{allocateUserSeq}
+	</select>
+	
+	<select id="getUnAllocateDistMoneyList" parameterType="AllocateDistMoneyDAO" resultType="AllocateDistMoneyDAO" >
+		SELECT al.seq, al.dist_seq, al.allocate_user_seq, al.allocate_date, dist.token
+		FROM tb_dist_allocated al
+		INNER JOIN tb_dist_info dist ON al.dist_seq = dist.seq AND dist.token = #{token}
+		WHERE al.allocate_user_seq IS NULL
+	</select>
+
+	<select id="countDistUser" parameterType="DistMoneyDAO" resultType="int" >
+		SELECT COUNT(seq) 
+		FROM tb_dist_info
+		WHERE token = #{token}
+		AND user_seq = #{userSeq} 
+	</select>
+
+	<update id="updateAllocateDistMoney" parameterType="AllocateDistMoneyDAO">
+		UPDATE tb_dist_allocated
+		SET allocate_user_seq =  #{allocateUserSeq}
+		, allocate_date= now()
+		WHERE seq =  #{seq}
+	</update>
+
+	<select id="getDistMoneyStatus" parameterType="SearchDistMoneyDAO" resultType="SearchDistMoneyDAO" >
+		SELECT d.*, sum(a.allocate_amount) AS allocated_amount, COUNT(a.seq) AS allocated_count, a.allocate_amount, a.allocate_user_seq
+		FROM tb_dist_info d
+		INNER JOIN tb_dist_allocated a ON d.seq = a.dist_seq AND a.allocate_user_seq IS NOT NULL
+		WHERE d.token = #{token}
+		AND d.user_seq = #{userSeq}
+	</select>
+
+	<select id="getDistMoneyStatusAllocatedUserList" parameterType="SearchDistMoneyDAO" resultType="SearchDistMoneyDAO" >
+		SELECT d.token, a.allocate_amount, a.allocate_user_seq
+		FROM tb_dist_info d
+		INNER JOIN tb_dist_allocated a ON d.seq = a.dist_seq AND a.allocate_user_seq IS NOT NULL
+		WHERE d.token = #{token}
+		AND d.user_seq = #{userSeq}
+	</select>
+
+
+
+</mapper>
